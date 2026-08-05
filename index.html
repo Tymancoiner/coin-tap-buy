@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><!-- PLAYABLE_TOUCH_PATCH_V1 --><script>
+(function() {
+  if (window.__playableTouchPatchInstalled) return;
+  window.__playableTouchPatchInstalled = true;
+  var origAdd = EventTarget.prototype.addEventListener;
+  var blockedTypes = { touchstart: 1, touchmove: 1, wheel: 1 };
+  EventTarget.prototype.addEventListener = function(type, listener, options) {
+    if (blockedTypes[type]) {
+      if (options === undefined || options === null) {
+        options = { passive: true };
+      } else if (typeof options === 'boolean') {
+        options = { capture: options, passive: true };
+      } else {
+        options = Object.assign({}, options, { passive: true });
+      }
+    }
+    return origAdd.call(this, type, listener, options);
+  };
+})();
+</script><script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coin Tap - Buy Coins</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+body{background:linear-gradient(135deg,#6a5af9,#8a2be2);min-height:100vh;color:white;padding:16px;padding-bottom:90px}
+.card{background:rgba(0,0,0,0.25);backdrop-filter:blur(10px);border-radius:16px;padding:14px;margin-bottom:12px;border:1px solid rgba(255,255,255,0.1)}
+.buy-btn{width:100%;background:linear-gradient(90deg,gold,#ffcc00);color:#000;padding:18px;border:none;border-radius:14px;font-weight:900;font-size:18px;cursor:pointer;box-shadow:0 6px 20px rgba(255,215,0,0.4);margin-bottom:14px}
+.coin-btn{width:180px;height:180px;background:radial-gradient(circle at 35% 35%,#ffeb3b,#ff9800);border-radius:50%;border:6px solid #fff;font-size:80px;display:flex;align-items:center;justify-content:center;margin:20px auto;cursor:pointer;box-shadow:0 10px 30px rgba(0,0,0,0.3);transition:transform 0.07s}
+.coin-btn:active{transform:scale(0.92)}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center}
+.stat b{display:block;font-size:20px}
+.progress{height:8px;background:rgba(255,255,255,0.2);border-radius:99px;overflow:hidden;margin-top:8px}
+.progress>div{height:100%;background:gold;width:0%;transition:width 0.3s}
+.shop{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.shop button{background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);color:white;padding:12px;border-radius:12px;font-weight:700}
+</style>
+</head>
+<body>
+<button class="buy-btn" onclick="buyCoins()">💰 Buy 1000 Coins - $1</button>
+
+<div class="card">
+<h3 style="margin-bottom:8px">🏆 Leaderboard</h3>
+<div class="stats">
+<div><b id="coins">0</b><small>Your Coins</small></div>
+<div><b id="streak">0</b><small>Streak</small></div>
+<div><b id="high">0</b><small>Best</small></div>
+</div>
+<div class="progress"><div id="bar"></div></div>
+<small id="nextUp" style="opacity:0.8">Next upgrade at 100 coins</small>
+</div>
+
+<div style="text-align:center">
+<h1 style="font-size:28px">Coin Tap</h1>
+<p style="opacity:0.8">Tap fast, stack coins!</p>
+<div class="coin-btn" id="tapBtn">🪙</div>
+<p>Level: <b id="level">1</b> | Tap Power: <b id="power">1</b></p>
+</div>
+
+<div class="card">
+<h4>🛒 Upgrades</h4>
+<div class="shop" style="margin-top:10px">
+<button onclick="buyUpgrade(100,1)">+1 Power<br><small>100 coins</small></button>
+<button onclick="buyUpgrade(500,5)">+5 Power<br><small>500 coins</small></button>
+</div>
+</div>
+
+<script>
+let coins = parseInt(localStorage.getItem('coins')||'0');
+let streak = 0;
+let high = parseInt(localStorage.getItem('highScore')||'0');
+let power = parseInt(localStorage.getItem('power')||'1');
+let level = Math.floor(coins/100)+1;
+
+const $ = id=>document.getElementById(id);
+
+function save(){
+ localStorage.setItem('coins',coins);
+ localStorage.setItem('highScore',Math.max(high,coins));
+ localStorage.setItem('power',power);
+ render();
+}
+
+function render(){
+ $('coins').textContent=coins;
+ $('streak').textContent=streak;
+ $('high').textContent=Math.max(high,coins);
+ $('power').textContent=power;
+ level=Math.floor(coins/100)+1;
+ $('level').textContent=level;
+ $('bar').style.width=(coins%100)+'%';
+ $('nextUp').textContent=`Next level in ${100-coins%100} coins`;
+}
+
+function tap(){
+ coins+=power;
+ streak+=1;
+ if(streak>5) coins+=1;
+ high=Math.max(high,coins);
+ save();
+ $('tapBtn').style.transform='scale(0.92)';
+ setTimeout(()=>$('tapBtn').style.transform='',70);
+ if(window.Telegram) Telegram.WebApp.HapticFeedback.impactOccurred('light');
+}
+
+function buyCoins(){
+ coins+=1000;
+ alert('✅ Added 1000 coins! (Test mode - real $1 payment next step)');
+ save();
+}
+
+function buyUpgrade(cost, add){
+ if(coins<cost) return alert('Not enough coins! Keep tapping');
+ coins-=cost;
+ power+=add;
+ save();
+}
+
+$('tapBtn').addEventListener('click',tap);
+$('tapBtn').addEventListener('touchstart',e=>{e.preventDefault();tap();},{passive:false});
+
+render();
+setInterval(()=>{if(streak>0) streak=Math.max(0,streak-1); render()},2000);
+if(window.Telegram) Telegram.WebApp.ready();
+</script>
+</body>
+</html>
