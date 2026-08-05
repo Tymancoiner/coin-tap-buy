@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><!-- PLAYABLE_TOUCH_PATCH_V1 --><script>
+(function() {
+  if (window.__playableTouchPatchInstalled) return;
+  window.__playableTouchPatchInstalled = true;
+  var origAdd = EventTarget.prototype.addEventListener;
+  var blockedTypes = { touchstart: 1, touchmove: 1, wheel: 1 };
+  EventTarget.prototype.addEventListener = function(type, listener, options) {
+    if (blockedTypes[type]) {
+      if (options === undefined || options === null) {
+        options = { passive: true };
+      } else if (typeof options === 'boolean') {
+        options = { capture: options, passive: true };
+      } else {
+        options = Object.assign({}, options, { passive: true });
+      }
+    }
+    return origAdd.call(this, type, listener, options);
+  };
+})();
+</script><script>window.Intl=window.Intl||{};Intl.t=function(s){return(Intl._locale&&Intl._locale[s])||s;};</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Coin Tap - Real Payments</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui, -apple-system, Segoe UI, Roboto}
+body{background:linear-gradient(180deg,#7b66f0 0%,#6a5af9 30%,#8b5cf6 100%);min-height:100vh;color:white;padding:16px;padding-bottom:100px;overflow-x:hidden}
+.badge{background:rgba(255,255,255,0.2);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.2);border-radius:99px;padding:6px 16px;font-size:13px;display:inline-flex;align-items:center;gap:6px;margin:0 auto}
+.dot{width:8px;height:8px;background:#4ade80;border-radius:50%;box-shadow:0 0 8px #4ade80}
+.buy-btn{width:100%;background:linear-gradient(90deg,#ffd700,#ffcc00);color:#000;padding:16px;border:none;border-radius:14px;font-weight:900;font-size:16px;cursor:pointer;box-shadow:0 6px 20px rgba(255,215,0,0.5);margin:14px 0;display:flex;align-items:center;justify-content:center;gap:8px}
+.coin-main{width:190px;height:190px;background:radial-gradient(circle at 35% 35%,#ffe55c,#ffb300 60%,#ff8f00);border-radius:50%;border:5px solid rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center;margin:20px auto;box-shadow:0 20px 40px rgba(0,0,0,0.3), inset 0 -10px 20px rgba(0,0,0,0.2);font-size:80px;cursor:pointer;transition:transform 0.07s;user-select:none;-webkit-tap-highlight-color:transparent}
+.coin-main:active{transform:scale(0.92)}
+.center{text-align:center}
+.tap-badge{background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.15);border-radius:99px;padding:8px 18px;display:inline-flex;gap:8px;align-items:center;margin:10px 0}
+.card{background:rgba(255,255,255,0.15);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:16px;margin-top:18px}
+.progress{height:8px;background:rgba(0,0,0,0.2);border-radius:99px;overflow:hidden;margin:12px 0}
+.progress>div{height:100%;background:linear-gradient(90deg,gold,#ffcc00);width:0%;transition:width 0.3s}
+.upgrade-btn{width:100%;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);color:white;padding:14px;border-radius:14px;display:flex;justify-content:space-between;align-items:center;font-weight:700;margin-top:8px}
+</style>
+</head>
+<body>
+<div class="center"><div class="badge"><span class="dot"></span> Telegram Mini App • Live</div></div>
+
+<button class="buy-btn" id="buyBtn" onclick="buyWithStars()">💰 Buy 1000 Coins - 100 Stars (~$1)</button>
+<p id="payStatus" style="text-align:center;font-size:12px;opacity:0.8;margin-bottom:8px"></p>
+
+<div class="center" style="margin-top:8px">
+<h1 style="font-size:36px;font-weight:900;display:flex;align-items:center;justify-content:center;gap:10px"><span style="width:40px;height:40px;background:gold;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:22px;color:#8B4513">🏛️</span> Coin Tap</h1>
+<p style="opacity:0.9;margin-top:4px">Hey, Player! 👋</p>
+<h2 id="total" style="font-size:72px;font-weight:900;margin-top:12px;line-height:1">0</h2>
+<p style="letter-spacing:3px;opacity:0.7;font-size:12px;font-weight:700;margin-top:4px">TOTAL COINS</p>
+<div class="tap-badge">⚡ Each tap: <b id="power">1</b> 💰</div>
+</div>
+
+<div class="center">
+<div class="coin-main" id="tapBtn">💰</div>
+<p style="opacity:0.8">Tap the coin!</p>
+</div>
+
+<div class="card">
+<div style="display:flex;justify-content:space-between;font-size:11px;letter-spacing:1px;opacity:0.8;font-weight:700"><span>UPGRADE PROGRESS</span><span id="pct">0%</span></div>
+<div class="progress"><div id="bar"></div></div>
+<button class="upgrade-btn" onclick="buyUpgrade()"><span>⚡ Upgrade</span><span style="background:rgba(0,0,0,0.3);padding:6px 12px;border-radius:99px;font-size:13px">10 💰</span></button>
+<p id="nextInfo" style="text-align:center;font-size:12px;opacity:0.7;margin-top:10px">Next tap: +2 • 10 more needed</p>
+</div>
+
+<script>
+let coins = parseInt(localStorage.getItem('coins')||'0');
+let power = parseInt(localStorage.getItem('power')||'1');
+let totalTaps = parseInt(localStorage.getItem('taps')||'0');
+const $ = id=>document.getElementById(id);
+function save(){localStorage.setItem('coins',coins);localStorage.setItem('power',power);localStorage.setItem('taps',totalTaps); render();}
+function render(){
+ $('total').textContent=coins;
+ $('power').textContent=power;
+ let pct = coins%10*10;
+ $('bar').style.width=pct+'%';
+ $('pct').textContent=pct+'%';
+ $('nextInfo').textContent=`Next tap: +${power+1} • ${10-coins%10} more needed`;
+}
+function tap(){
+ coins+=power; totalTaps++; save();
+ $('tapBtn').style.transform='scale(0.92)';
+ setTimeout(()=>$('tapBtn').style.transform='',70);
+ if(window.Telegram?.WebApp?.HapticFeedback) Telegram.WebApp.HapticFeedback.impactOccurred('light');
+}
+function buyUpgrade(){
+ if(coins<10) return alert('Need 10 coins! Keep tapping');
+ coins-=10; power+=1; save();
+}
+async function buyWithStars(){
+ const btn=$('buyBtn');
+ btn.disabled=true;
+ $('payStatus').textContent='Creating payment link...';
+ try{
+   const r = await fetch('/api/invoice', {method:'POST'});
+   const j = await r.json();
+   if(!j.invoiceLink) throw new Error(j.error||'No invoice link');
+   $('payStatus').textContent='Opening Telegram payment...';
+   Telegram.WebApp.openInvoice(j.invoiceLink, function(status){
+     if(status==='paid'){
+       coins+=1000; save();
+       $('payStatus').textContent='✅ Paid! +1000 coins added!';
+       Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+     } else if(status==='cancelled'){
+       $('payStatus').textContent='Payment cancelled';
+     } else if(status==='failed'){
+       $('payStatus').textContent='Payment failed - try again';
+     }
+     btn.disabled=false;
+   });
+ } catch(e){
+   console.error(e);
+   $('payStatus').textContent='Error: '+e.message+' (test mode adding coins)';
+   // fallback for testing without backend
+   coins+=1000; save();
+   btn.disabled=false;
+   setTimeout(()=>{$('payStatus').textContent='✅ +1000 coins (test - add BOT_TOKEN in Vercel to enable real Stars)'},500);
+ }
+}
+$('tapBtn').addEventListener('click',tap);
+$('tapBtn').addEventListener('touchstart',e=>{e.preventDefault();tap();},{passive:false});
+if(window.Telegram?.WebApp){ Telegram.WebApp.ready(); Telegram.WebApp.expand(); }
+render();
+</script>
+</body>
+</html>
